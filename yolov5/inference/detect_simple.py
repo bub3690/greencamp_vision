@@ -1,5 +1,7 @@
 # YOLOv5 🚀 by Ultralytics, GPL-3.0 license
 """
+김보겸이 짰던 파일
+
 Run inference on images, videos, directories, streams, etc.
 
 Usage - sources:
@@ -35,19 +37,23 @@ import torch.backends.cudnn as cudnn
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
+sys.path.append(str(FILE.parents[1])+'\\yolov5_greencamp')  # yolov5 서브모듈 패스 넣어주기.
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
+print(sys.path)
+
 from models.common import DetectMultiBackend
-from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
-from utils.general import (LOGGER, check_file, check_img_size, check_imshow, check_requirements, colorstr, cv2,
-                           increment_path, non_max_suppression, print_args, scale_coords, strip_optimizer, xyxy2xywh)
+from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadScreenshots, LoadStreams
+from utils.general import (LOGGER, Profile, check_file, check_img_size, check_imshow, check_requirements, colorstr, cv2,
+                           increment_path, non_max_suppression, print_args, scale_boxes, strip_optimizer, xyxy2xywh)
 from utils.plots import Annotator, colors, save_one_box
-from utils.torch_utils import select_device, time_sync
+from utils.torch_utils import select_device, smart_inference_mode
+
 
 weights = 'yolov5s.pt'
-sourceO = 0  # file/dir/URL/glob, 0 for webcam
+sourceO = 0  # file/dir/URL/glob, 0 for webcam // 사용 x depth camer 연결하기 때문.
 data = ROOT / 'data/coco128.yaml'  # dataset.yaml path
 imgszO = (640, 640)  # inference size (height, width)
 conf_thres = 0.1  # confidence threshold
@@ -181,5 +187,9 @@ def run():
 
 if __name__ == "__main__":
     check_requirements(exclude=('tensorboard', 'thop'))
+    FILE = Path(__file__).resolve()
+    ROOT = FILE.parents[0]  # YOLOv5 root directory
+    print("YOLOV5 루트: ",ROOT)
+
     with torch.no_grad():
         run()
