@@ -70,9 +70,18 @@ clipping_distance = clipping_distance_in_meters / depth_scale
 align_to = rs.stream.color
 align = rs.align(align_to)
 
-# Streaming loop
-try:
-    while True:
+
+import rospy
+from sensor_msgs.msg import CompressedImage
+from cv_bridge import CvBridge
+
+br = CvBridge()
+
+def talker():
+    pub = rospy.Publisher('DepthImageAlign', CompressedImage, queue_size=10)
+    rospy.init_node('talker', anonymous=True)
+    rate = rospy.Rate(10) # 10hz
+    while not rospy.is_shutdown():
         # Get frameset of color and depth
         frames = pipeline.wait_for_frames()
         # frames.get_depth_frame() is a 640x360 depth image
@@ -89,36 +98,24 @@ try:
             continue
 
         depth_image = np.asanyarray(aligned_depth_frame.get_data())
+        depth_image = np.expand_dims(depth_image, axis=2)
         color_image = np.asanyarray(color_frame.get_data())
-
         # Remove background - Set pixels further than clipping_distance to grey
         grey_color = 153
-        depth_image_3d = np.dstack((depth_image,depth_image,depth_image)) #depth image is 1 channel, color is 3 channels
-        bg_removed = np.where((depth_image_3d > clipping_distance) | (depth_image_3d <= 0), grey_color, color_image) #1m 이상,또는 depth가 음수인 경우 background로 취급
+        # depth_image_3d = np.dstack((depth_image,depth_image,depth_image)) #depth image is 1 channel, color is 3 channels
+        # bg_removed = np.where((depth_image_3d > clipping_distance) | (depth_image_3d <= 0), grey_color, color_image) #1m 이상,또는 depth가 음수인 경우 background로 취급
+        # bg_removed = np.where((depth_image > clipping_distance) | (depth_image <= 0), grey_color, color_image) #1m 이상,또는 depth가 음수인 경우 background로 취급
+        # import pdb; pdb.set_trace()
+        im = np.concatenate((color_image,depth_image),axis=2).astype(np.uint8)
+        # im2 = cv2.imdecode(im, cv2.IMREAD_UNCHANGED)
+        msg = br.cv2_to_compressed_imgmsg(im, dst_format='png')
 
-        #color_intrin = aligned_color_frame.profile.as_video_stream_profile().intrinsics
-
-        #Use pixel value of  depth-aligned color image to get 3D axes
-        #print("depth size : ",depth_image.shape)
-        #print("color size : ",color_image.shape)
-        x, y = int(color_image.shape[0]/2), int(color_image.shape[1]/2)
-        print(x,y)
-        depth = aligned_depth_frame.get_distance(x, y)
-        print("depth : ",depth)
-
-        # Render images:
-        #   depth align to color on left
-        #   depth on right
-        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
-        images = np.hstack((bg_removed, depth_colormap))#가로로 왼쪽 오른쪽 붙인 것.
+        pub.publish(msg)
+        rate.sleep()
         
 
-        cv2.namedWindow('Align Example', cv2.WINDOW_NORMAL)
-        cv2.imshow('Align Example', images)
-        key = cv2.waitKey(1)
-        # Press esc or 'q' to close the image window
-        if key & 0xFF == ord('q') or key == 27:
-            cv2.destroyAllWindows()
-            break
-finally:
-    pipeline.stop()
+if __name__ == '__main__':
+    try:
+        talker()
+    except rospy.ROSInterruptException:
+        pass

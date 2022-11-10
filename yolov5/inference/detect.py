@@ -1,7 +1,7 @@
 # YOLOv5 🚀 by Ultralytics, GPL-3.0 license
 """
 
-실행 명령어: python detect.py --source realsense --weights chkpt/yolov5s.pt --nosave --view-img --augment
+실행 명령어: python3 detect.py --source realsense --weights chkpt/yolov5s.pt --nosave --view-img --augment
 
 리얼센스와 yolov5 사용
 
@@ -41,7 +41,7 @@ import torch
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
-sys.path.append(str(FILE.parents[1])+'\\yolov5_greencamp')  # yolov5 서브모듈 패스 넣어주기.
+sys.path.append(str(FILE.parents[1])+'/yolov5_greencamp')  # yolov5 서브모듈 패스 넣어주기.
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
