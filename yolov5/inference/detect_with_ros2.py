@@ -4,7 +4,7 @@
 실행 명령어: python3 detect.py --source realsense --weights chkpt/yolov5s.pt --nosave --view-img --augment
 
 
-python3 detect_with_ros2.py --source realsense --weights chkpt/yolov5s.pt --nosave --view-img --augment
+python3 detect_with_ros2.py --source realsense --weights best3.pt --nosave --view-img --augment
 
 
 리얼센스와 yolov5 사용
@@ -204,14 +204,16 @@ class Yolov5Detector:
             return
         print("start!")
         im0 = self.image_np.copy()
-        img = self.image_np[np.newaxis, :, :, :]
+        
+        img = self.image_np[np.newaxis, :,:,:]
 
         
         # # Stack
         img = np.stack(img, 0)
 
+        # import pdb; pdb.set_trace()
         # # Convert
-        img = img[..., ::-1].transpose((0, 3, 1, 2))  # BGR to RGB, BHWC to BCHW
+        img = img.transpose((0, 3, 1, 2))  # BGR to RGB, BHWC to BCHW
         # channel ,height widht가 되야하고. rgb로 바꿔야함.
         img = np.ascontiguousarray(img)
 
