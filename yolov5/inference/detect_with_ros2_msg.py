@@ -169,7 +169,7 @@ class Yolov5Detector:
         # self.mode_sub = rospy.Subscriber( # 항상 켜지게 고치라
         #     "/mode", String, self.inference_callback, queue_size=1
         # )
-        self.search_sub = rospy.subscriber("/Decision_mode",String,self.searching_callback,queue_size=1)
+        self.search_sub = rospy.Subscriber("/Decision_mode",String,self.searching_callback,queue_size=1)
         self.detection_pub = rospy.Publisher(
             "/xyz_sensor",detection
         )
@@ -180,7 +180,7 @@ class Yolov5Detector:
         self.bridge = CvBridge()
 
         #  메세지
-        self.dectection_msg = None
+        self.dectection_msg = detection()
 
 
 
@@ -201,28 +201,31 @@ class Yolov5Detector:
         # np_arr = np.fromstring(ros_data.data, np.uint8)
         # self.depth_np = cv2.imdecode(np_arr, cv2.IMREAD_UNCHANGED)
         # print("depth")
-        self.image_flag = True
+        
         self.depth_np = self.bridge.imgmsg_to_cv2(ros_data, ros_data.encoding)
+        self.image_flag = True
 
     def image_callback(self, ros_data):
         # np_arr = np.fromstring(ros_data.data, np.uint8)
         # self.image_np = cv2.imdecode(np_arr, cv2.IMREAD_UNCHANGED)
         # print("image")
-        self.depth_flag = True
+        
         self.image_np = self.bridge.imgmsg_to_cv2(ros_data, ros_data.encoding)
+        self.depth_flag = True
     
     def searching_callback(self,mode):
-        if mode == 'Searching':
-            print("publishing")
+        print("callback")
+        if mode.data == 'Searching':
+            print(self.dectection_msg.len,self.dectection_msg.X,self.dectection_msg.Y,self.dectection_msg.Z)
             self.detection_pub.publish(self.dectection_msg)
         return
 
     def inference_callback(self):
         ###########
-        print("callback!")
+        #print("callback!")
         if (not self.image_flag) or (not self.depth_flag):
             return
-        print("start!")
+        #print("start!")
         im0 = self.image_np.copy()
         
         img = self.image_np[np.newaxis, :,:,:]
@@ -287,6 +290,7 @@ class Yolov5Detector:
             
             annotator = Annotator(im0, line_width=3, example=str(self.names))
             xyxys = []
+            confs = []
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 #print(im.shape[2:], det[:, :4], im0.shape)
@@ -299,7 +303,7 @@ class Yolov5Detector:
                 #print(reversed(det))
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
-                    xyxys.append(xyxy)
+                    xyxys.append([conf, xyxy])
                     # xyxy에 네모상자 좌표가 담긴다.
                     #print(xyxy)
                     #print("for")
@@ -315,9 +319,11 @@ class Yolov5Detector:
             x_list = []
             y_list = []
             distance_list = []
-
+            xyxys = sorted(xyxys,reverse=True)
+            if len(xyxys) > 10:
+                xyxys = xyxys[:10]
             #print("im0 shpae : ",im0.shape)
-            for xyxy in xyxys:
+            for conf, xyxy in xyxys:
                     xy_coord = ( int((xyxy[0]+xyxy[2])/2), int((xyxy[1]+xyxy[3])/2))
                     x_list.append(xy_coord[1])
                     y_list.append(xy_coord[0])
@@ -327,7 +333,7 @@ class Yolov5Detector:
                     distance = self.depth_np[xy_coord[1], xy_coord[0]]
                     
                     distance_list.append(distance)
-
+                    #import pdb;pdb.set_trace()
                     cv2.putText(im0,
                                 "{:.4f}".format(distance),
                                 xy_coord, 
@@ -342,10 +348,15 @@ class Yolov5Detector:
             #print("changed im0 shpae : ",im0.shape)
             #im0=im0.transpose((1, 2, 0))
             #cv2.imshow("yolo", im0)
-            print(s)
+            #print(s)
 
             self.dectection_msg = detection()
             self.dectection_msg.len = len(distance_list)
+            
+            distance_list+=[0]*(10-self.dectection_msg.len )
+            x_list+=[0]*(10-self.dectection_msg.len )
+            y_list+=[0]*(10-self.dectection_msg.len )
+
             self.dectection_msg.X =  x_list
             self.dectection_msg.Y =  y_list
             self.dectection_msg.Z =  distance_list
@@ -355,6 +366,7 @@ class Yolov5Detector:
 
             #cv2.imshow("yolo", im0) # 랙걸릴 땐 이것만 켜기.
             depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(self.depth_np, alpha=0.03), cv2.COLORMAP_JET)
+            im0 = cv2.cvtColor(im0, cv2.COLOR_BGR2RGB)
             images = np.hstack((im0, depth_colormap))#가로로 왼쪽 오른쪽 붙인 것.
             
 
