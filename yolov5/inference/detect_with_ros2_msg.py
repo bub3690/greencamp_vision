@@ -4,7 +4,7 @@
 실행 명령어: python3 detect.py --source realsense --weights chkpt/yolov5s.pt --nosave --view-img --augment
 
 
-python3 detect_with_ros2.py --source realsense --weights best3.pt --nosave --view-img --augment
+python3 detect_with_ros2_msg.py --source realsense --weights best_m.pt --nosave --view-img --augment
 
 
 리얼센스와 yolov5 사용
@@ -46,7 +46,9 @@ import torch.backends.cudnn as cudnn
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
+
 sys.path.append(str(FILE.parents[1])+'/yolov5_greencamp')  # yolov5 서브모듈 패스 넣어주기.
+
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
@@ -74,7 +76,11 @@ from std_msgs.msg import String
 
 from yolo_msg_pkg.msg import detection
 
+from PIL import ImageFont,ImageDraw
 
+from PIL import Image as IM
+
+font=ImageFont.truetype("./fonts/gulim.ttf",25)
 
 
 class Yolov5Detector:
@@ -100,7 +106,7 @@ class Yolov5Detector:
             project=ROOT / 'runs/detect',  # save results to project/name
             name='exp',  # save results to project/name
             exist_ok=False,  # existing project/name ok, do not increment
-            line_thickness=3,  # bounding box thickness (pixels)
+            line_thickness=2,  # bounding box thickness (pixels)
             hide_labels=False,  # hide labels
             hide_conf=False,  # hide confidences
             half=False,  # use FP16 half-precision inference
@@ -132,13 +138,16 @@ class Yolov5Detector:
         self.conf_thres, self.iou_thres, self.classes, self.agnostic_nms, self.max_det = \
             conf_thres, iou_thres, classes, agnostic_nms, max_det
         self.visualize, self.hide_labels, self.hide_conf, self.augment = visualize, hide_labels, hide_conf, augment
-
+        self.line_thickness = line_thickness
         self.save_crop, self.view_img = save_crop, view_img
         
         self.imgsz = check_img_size(imgsz, s=self.stride)  # check image size
 
         # Streaming loop
         self.red_color = (0,0,255)
+
+        for i in range(7):
+            self.names[i]='tomato'
 
         cudnn.benchmark = True
 
@@ -262,6 +271,7 @@ class Yolov5Detector:
         # NMS
         with dt[2]:
             #print("dt 2")
+            #print("nms")
             pred = non_max_suppression(pred, self.conf_thres, self.iou_thres, self.classes, self.agnostic_nms, max_det=self.max_det)
 
         # Second-stage classifier (optional)
@@ -288,7 +298,10 @@ class Yolov5Detector:
             #im0 = img.copy()
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             
-            annotator = Annotator(im0, line_width=3, example=str(self.names))
+            #im0 = cv2.cvtColor(im0, cv2.COLOR_BGR2RGB)
+            
+            
+            annotator = Annotator(im0, line_width=self.line_thickness, example=str(self.names))
             xyxys = []
             confs = []
             if len(det):
@@ -323,6 +336,11 @@ class Yolov5Detector:
             if len(xyxys) > 10:
                 xyxys = xyxys[:10]
             #print("im0 shpae : ",im0.shape)
+
+            # to pillow
+            im0 = IM.fromarray(im0) #img배열을 PIL이 처리가능하게 변환
+            draw = ImageDraw.Draw(im0)
+
             for conf, xyxy in xyxys:
                     xy_coord = ( int((xyxy[0]+xyxy[2])/2), int((xyxy[1]+xyxy[3])/2))
                     x_list.append(xy_coord[1])
@@ -334,22 +352,24 @@ class Yolov5Detector:
                     
                     distance_list.append(distance)
                     #import pdb;pdb.set_trace()
-                    cv2.putText(im0,
-                                "{:.4f}".format(distance),
-                                xy_coord, 
-                                cv2.FONT_HERSHEY_SIMPLEX, 
-                                0.8,
-                                colors(c, True), 
-                                1, 
-                                cv2.LINE_AA
-                    )                    
+                    draw.text(xy_coord,text="{:.3f}cm".format(distance*0.1),font=font,stroke_width=1,fill='black') #text를 출력
+
+                    # cv2.putText(im0,
+                    #             "{:.0f}".format(distance),
+                    #             xy_coord, 
+                    #             , 
+                    #             0.8,
+                    #             colors(c, True), 
+                    #             1, 
+                    #             cv2.LINE_AA
+                    # )                    
 
             #im0=im0[0,:,:,:]
             #print("changed im0 shpae : ",im0.shape)
             #im0=im0.transpose((1, 2, 0))
             #cv2.imshow("yolo", im0)
             #print(s)
-
+            im0 = np.array(im0)
             self.dectection_msg = detection()
             self.dectection_msg.len = len(distance_list)
             
@@ -365,8 +385,9 @@ class Yolov5Detector:
             
 
             #cv2.imshow("yolo", im0) # 랙걸릴 땐 이것만 켜기.
+            im0 = cv2.cvtColor(im0, cv2.COLOR_RGB2BGR)
             depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(self.depth_np, alpha=0.03), cv2.COLORMAP_JET)
-            im0 = cv2.cvtColor(im0, cv2.COLOR_BGR2RGB)
+            #im0 = cv2.cvtColor(im0, cv2.COLOR_BGR2RGB)
             images = np.hstack((im0, depth_colormap))#가로로 왼쪽 오른쪽 붙인 것.
             
 
