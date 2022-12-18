@@ -1,10 +1,10 @@
 # YOLOv5 🚀 by Ultralytics, GPL-3.0 license
 """
 
-실행 명령어: python3 detect.py --source realsense --weights chkpt/yolov5s.pt --nosave --view-img --augment
+실행 명령어: python3 detect_with_ros2_msg.py --source realsense --weights best_m.pt --nosave --view-img --augment
 
 
-python3 detect_with_ros2_msg.py --source realsense --weights best_m.pt --nosave --view-img --augment
+
 
 
 리얼센스와 yolov5 사용
